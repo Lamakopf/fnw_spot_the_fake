@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Spot the Fake! — Faktenchecker Stufe 1</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#fff;--text:#1a1a1a;--accent:#0056b3;--accent-light:#e8f0fe;--ok:#067a32;--warn:#c75100;--muted:#666}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;line-height:1.7}
+  main{max-width:960px;margin:3.5rem auto;padding:0 1.5rem}
+
+  /* Header */
+  h1{color:var(--accent);margin:0 0 .25rem;font-size:1.9rem}
+  .subtitle{color:var(--muted);margin:0 0 2rem}
+
+  /* Home / Level cards */
+  #home{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+  .card{border:1px solid #e7ebf3;border-radius:12px;padding:16px;transition:box-shadow .2s;cursor:pointer;background:#fff}
+  .card:hover{box-shadow:0 8px 18px rgba(0,0,0,.06)}
+  .card h2{margin:.25rem 0 .5rem;font-size:1.1rem;color:var(--text)}
+  .tag{display:inline-block;background:#f5f8ff;color:var(--accent);padding:4px 8px;border-radius:999px;font-size:.8rem;margin-bottom:.5rem}
+  .teaser{color:#424242;font-size:.95rem}
+
+  /* Game area */
+  #game{display:none}
+  .topbar{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+  .back{background:#f1f3f6;color:var(--text);border:1px solid #e5e7eb;border-radius:8px;padding:.5rem .8rem;cursor:pointer}
+  .post{user-select:none;text-align:justify;text-justify:inter-word;hyphens:auto}
+  .post p{margin:0 0 1.2rem}
+  .token{padding:1px 2px;border-radius:3px;cursor:pointer;transition:background .15s}
+  .token:hover{background:var(--accent-light)}
+  .token.marked{background:#cde3ff}
+  .controls{margin-top:1.5rem;display:flex;gap:.8rem;align-items:center}
+  .btn{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:.6rem 1rem;cursor:pointer}
+  .btn.secondary{background:#f1f3f6;color:var(--text)}
+  .score{margin-left:auto;color:var(--muted)}
+  .feedback{margin-top:2rem;border-top:1px solid #e5e5e5;padding-top:1rem}
+  .phrase-correct{color:var(--ok)} .phrase-missed{color:var(--warn)}
+</style>
+</head>
+<body>
+<main>
+  <h1>🕵️ Spot the Fake!</h1>
+  <p class="subtitle">Wähle ein Szenario, lies den Text und markiere Formulierungen, die auf Desinformation oder manipulative Rhetorik hindeuten.</p>
+
+  <!-- HOME / LEVEL-AUSWAHL -->
+  <section id="home"></section>
+
+  <!-- GAME -->
+  <section id="game" aria-live="polite">
+    <div class="topbar">
+      <button id="backBtn" class="back">← Zurück</button>
+      <div id="levelTitle" style="font-weight:600"></div>
+    </div>
+
+    <div id="post" class="post"></div>
+
+    <div class="controls">
+      <button id="checkBtn" class="btn">Antwort prüfen</button>
+      <button id="resetBtn" class="btn secondary">Zurücksetzen</button>
+      <span class="score">Punkte: <span id="score">0</span></span>
+    </div>
+
+    <div id="feedback" class="feedback"></div>
+  </section>
+</main>
+
+<script>
+/* ============================================================
+   Architektur:
+   - levels[] enthält je Level: title, teaser, source (mit Absatz-Marker), phraseSpecs
+   - Alles (Tokenizing, Phrasen-Mapping, Rendering) basiert auf EINEM String (source)
+   - Absatz-Marker PARA erzeugt echte <p> beim Rendern, ohne Indizes zu verschieben
+   ============================================================ */
+const PARA = "§¶§";
+
+/* ---------- LEVEL 1 (dein bestehender Energie-Text) ---------- */
+const level1 = {
+  id: "energy",
+  title: "„Netzstabilisierung“ oder doch Rationierung?",
+  teaser: "Bericht über angebliche, geplante Stromabschaltungen und ‚Insider‘ — klingt investigativ, ist aber voller weicher Behauptungen.",
+  source: [
+    "Berlin – Was viele befürchtet haben, scheint sich nun zu bestätigen: Nach Informationen, die unserer Redaktion exklusiv vorliegen, arbeitet die Bundesregierung offenbar schon seit Monaten an einem Programm für geplante Stromabschaltungen. Offiziell spricht man von „Netzstabilisierung“ – doch Insider sagen, es gehe in Wahrheit um eine schrittweise Vorbereitung der Bevölkerung auf Engpässe im Winter.",
+    "Mehrere Mitarbeiter aus Energieunternehmen und Behörden berichten übereinstimmend, dass in internen Sitzungen bereits „Simulationen regionaler Strompausen“ durchgeführt worden seien. Ein Beteiligter, der anonym bleiben möchte, erklärte: „Die Leute sollen sich an den Gedanken gewöhnen, dass Strom kein Selbstverständnis mehr ist.“",
+    "Laut den uns vorliegenden Unterlagen – deren Echtheit von keiner offiziellen Stelle bestritten wurde – sind zunächst Testläufe in Ballungsgebieten geplant. Dabei sollen in kurzen Intervallen bestimmte Stromkreise vom Netz genommen werden, um das Verhalten der Verbraucher zu beobachten. „Das nennt man in den Dokumenten ‘Verbrauchsanpassung’, aber es ist nichts anderes als Rationierung,“ so ein Insider.",
+    "Bemerkenswert ist, dass große Medien bisher kaum darüber berichten. Stattdessen werden Kritiker, die diese Vorgänge öffentlich machen, als „Verschwörungstheoretiker“ abgetan. Dabei liegen die Hinweise offen auf dem Tisch: Protokolle, interne Mails, Gespräche mit Branchenvertretern – all das ergibt ein klares Bild.",
+    "Mehrere Leserinnen und Leser haben uns zudem berichtet, dass es in den letzten Wochen vermehrt zu kurzzeitigen Stromausfällen gekommen sei – vor allem nachts. Zufall? Kaum vorstellbar. Während offizielle Stellen beschwichtigen, mehren sich die Stimmen, die sagen, dass die Wahrheit bald nicht mehr zu verbergen ist. Immer mehr Menschen fordern Aufklärung. Und je länger die Regierung schweigt, desto klarer wird: Da ist etwas dran."
+  ].join(` ${PARA} `),
+  phraseSpecs: [
+    { text:"Was viele befürchtet haben, scheint sich nun zu bestätigen", explanation:"Angstmachender Einstieg ohne Beleg – suggeriert Dringlichkeit." },
+    { text:"die unserer Redaktion exklusiv vorliegen", explanation:"‚Exklusiv‘ wirkt glaubwürdig, ist aber nicht überprüfbar." },
+    { text:"offenbar schon", explanation:"Klingt sachlich, bedeutet aber nur eine Vermutung." },
+    { text:"doch Insider sagen", explanation:"Unklare Quelle – beliebtes Stilmittel für Pseudo-Enthüllungen." },
+    { text:"Mehrere Mitarbeiter aus Energieunternehmen und Behörden", explanation:"Vage Gruppenquelle ohne Nachweis – klassisches Fake-News-Muster." },
+    { text:"deren Echtheit von keiner offiziellen Stelle bestritten wurde", explanation:"Fehlende Dementis werden als Beweis verkauft – logischer Trick." },
+    { text:"Bemerkenswert ist, dass große Medien bisher kaum darüber berichten", explanation:"Misstrauens-Narrativ gegenüber seriösen Medien." },
+    { text:"Und je länger die Regierung schweigt, desto klarer wird: Da ist etwas dran.", explanation:"Beweislast-Umkehr – Schweigen wird als Schuld interpretiert." }
+  ]
+};
+
+/* ---------- LEVEL 2 (neues Szenario) ---------- */
+const level2 = {
+  id: "chem",
+  title: "Geheime Zusatzstoffe im Trinkwasser „nachgewiesen“?",
+  teaser: "Pseudowissenschaftlicher Ton, ‚Laborberichte‘ und Schweigekartell-Frame — ideal, um Prüfwege zu trainieren.",
+  source: [
+    "Eine neue Laboranalyse, die unserer Redaktion exklusiv zugespielt wurde, soll belegen, dass in mehreren Städten bislang verschwiegene Zusatzstoffe ins Trinkwasser gelangt sind. Aus gut informierten Kreisen heißt es, die Verantwortlichen hätten die Öffentlichkeit bewusst im Unklaren gelassen, um Panik zu vermeiden.",
+    "Mehrere Bürgerinitiativen berichten übereinstimmend von Geschmacksveränderungen und Hautreizungen. In Chatgruppen kursieren Fotos von angeblichen Prüfprotokollen, deren Echtheit bislang von keiner offiziellen Stelle bestritten wurde. Ein anonymer Chemietechniker sagt, die Werte lägen „deutlich über dem, was man für unbedenklich hält“. Belege dafür werden nicht vorgelegt.",
+    "Die Behörden sprechen von routinemäßigen Qualitätskontrollen und sehen keinen Anlass zur Sorge. Doch laut internen Dokumenten, die Insider einsehen konnten, seien schon länger „Anpassungen“ an den Grenzwerten diskutiert worden – angeblich, um Berichte über Überschreitungen zu vermeiden.",
+    "Bemerkenswert ist, dass große Medien kaum darüber berichten. Stattdessen würden kritische Stimmen diffamiert. In einem viel geteilten Beitrag heißt es: „Wenn das alles nicht stimmt, warum schweigen sie dann?“ Diese Frage wird als Beweis dafür interpretiert, dass die Vorwürfe Substanz haben.",
+    "Fakt ist: Bislang gibt es keine überprüfbaren Quellen, die die Anschuldigungen zweifelsfrei bestätigen. Dennoch verbreitet sich die Geschichte rasant – getrieben von Emotionalität, vagen Autoritätsbehauptungen und der Erzählung einer gezielten Vertuschung."
+  ].join(` ${PARA} `),
+  phraseSpecs: [
+    { text:"Laboranalyse, die unserer Redaktion exklusiv zugespielt wurde", explanation:"Scheinexklusivität soll Glaubwürdigkeit erzeugen, Quelle bleibt unklar." },
+    { text:"Aus gut informierten Kreisen heißt es", explanation:"Vage Berufung auf Autorität ohne Nachprüfbarkeit." },
+    { text:"bewusst im Unklaren gelassen", explanation:"Unterstellt Absicht/Vertuschung ohne Beleg." },
+    { text:"deren Echtheit bislang von keiner offiziellen Stelle bestritten wurde", explanation:"Kein Dementi als Beweis zu werten ist ein Trugschluss." },
+    { text:"Ein anonymer Chemietechniker", explanation:"Anonym + Berufsbezeichnung = Aura von Expertise ohne Verantwortung." },
+    { text:"laut internen Dokumenten, die Insider einsehen konnten", explanation:"Unverifizierbare Einsicht – klassisches Insider-Framing." },
+    { text:"Bemerkenswert ist, dass große Medien kaum darüber berichten", explanation:"Schweigekartell-Narrativ, um seriöse Quellen zu diskreditieren." },
+    { text:"Wenn das alles nicht stimmt, warum schweigen sie dann?", explanation:"Beweislast-Umkehr: Schweigen wird als Bestätigung umgedeutet." }
+  ]
+};
+
+/* ---------- App-State ---------- */
+const levels = [level1, level2];
+let current = null;         // aktuelles Level-Objekt
+let tokens = [];
+let occurrences = [];
+let selected = new Set();
+
+/* ---------- Home (Level-Auswahl) ---------- */
+function renderHome(){
+  const home = document.getElementById("home");
+  home.innerHTML = "";
+  levels.forEach((lv, idx)=>{
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML = `
+      <span class="tag">Level ${idx+1}</span>
+      <h2>${lv.title}</h2>
+      <p class="teaser">${lv.teaser}</p>
+    `;
+    card.addEventListener("click", ()=>startGame(idx));
+    home.appendChild(card);
+  });
+
+  // Sichtbarkeit
+  document.getElementById("home").style.display = "grid";
+  document.getElementById("game").style.display = "none";
+}
+
+/* ---------- Spiel starten ---------- */
+function startGame(index){
+  current = levels[index];
+  document.getElementById("levelTitle").textContent = `Level ${index+1} – ${current.title}`;
+  document.getElementById("feedback").innerHTML = "";
+  document.getElementById("score").textContent = "0";
+  selected.clear();
+
+  // Tokenize & map using ONE source string
+  tokens = tokenize(current.source);
+  occurrences = [];
+  mapPhrases(current.source);
+
+  // Render paragraphs + tokens
+  renderPost();
+
+  // Sichtbarkeit
+  document.getElementById("home").style.display = "none";
+  document.getElementById("game").style.display = "block";
+}
+
+/* ---------- Tokenisierung (behält Whitespaces als Tokens) ---------- */
+function tokenize(text){
+  const re = /(\s+|[^\s]+)/g;
+  const out=[]; let m, i=0;
+  while((m=re.exec(text))!==null){
+    out.push({ text:m[0], start:m.index, end:m.index+m[0].length, idx:i, el:null, occIds:[] });
+    i++;
+  }
+  return out;
+}
+
+/* ---------- Phrasen-Mapping ---------- */
+function mapPhrases(text){
+  const lower = text.toLowerCase();
+  current.phraseSpecs.forEach((p,pIdx)=>{
+    const target = p.text.toLowerCase();
+    let pos = 0;
+    while(true){
+      const f = lower.indexOf(target, pos);
+      if(f === -1) break;
+      const e = f + target.length;
+      const ids = tokens.filter(t => !(t.end <= f || t.start >= e)).map(t=>t.idx);
+      const id = occurrences.length;
+      occurrences.push({ id, phraseIdx:pIdx, tokens:ids });
+      ids.forEach(i => tokens[i].occIds.push(id));
+      pos = e;
+    }
+  });
+}
+
+/* ---------- Rendering mit Absatz-Marker ---------- */
+function renderPost(){
+  const post = document.getElementById("post");
+  post.innerHTML = "";
+  let pEl = document.createElement("p");
+
+  tokens.forEach(t=>{
+    if(t.text.includes(PARA)){
+      post.appendChild(pEl);
+      pEl = document.createElement("p");
+      return; // Marker selbst nicht anzeigen
+    }
+    const span = document.createElement("span");
+    span.textContent = t.text;
+    span.className = "token";
+    t.el = span;
+    span.addEventListener("click", ()=>handleClick(t));
+    pEl.appendChild(span);
+  });
+  post.appendChild(pEl);
+}
+
+/* ---------- Interaktion ---------- */
+function handleClick(t){
+  if(t.occIds.length){
+    toggleOccurrence(t.occIds[0]);
+  } else {
+    const sel = t.el.classList.toggle("marked");
+    const id = "single-"+t.idx;
+    sel ? selected.add(id) : selected.delete(id);
+    updateScore();
+  }
+}
+function toggleOccurrence(id){
+  const occ = occurrences[id];
+  const active = occ.tokens.every(i => tokens[i].el.classList.contains("marked"));
+  occ.tokens.forEach(i => tokens[i].el.classList.toggle("marked", !active));
+  if(active) selected.delete(id); else selected.add(id);
+  updateScore();
+}
+function updateScore(){
+  document.getElementById("score").textContent = selected.size;
+}
+
+/* ---------- Feedback ---------- */
+function checkAnswers(){
+  const fb = document.getElementById("feedback");
+  fb.innerHTML = "<h2>Auswertung</h2>";
+  const ul = document.createElement("ul");
+  let correct = 0;
+  occurrences.forEach(o=>{
+    const picked = o.tokens.every(i => tokens[i].el.classList.contains("marked"));
+    const p = current.phraseSpecs[o.phraseIdx];
+    const li = document.createElement("li");
+    li.innerHTML = (picked ? "✅ " : "⚠️ ") + `<strong>${p.text}</strong> — ${p.explanation}`;
+    ul.appendChild(li);
+    if(picked) correct++;
+  });
+  fb.appendChild(ul);
+  fb.insertAdjacentHTML("beforeend", `<p><strong>Punkte:</strong> ${correct} / ${occurrences.length}</p>`);
+}
+
+/* ---------- Reset & Back ---------- */
+function resetAll(){
+  selected.clear();
+  tokens.forEach(t=>t.el && t.el.classList.remove("marked"));
+  document.getElementById("feedback").innerHTML = "";
+  updateScore();
+}
+function goHome(){
+  resetAll();
+  current = null;
+  renderHome();
+}
+
+/* ---------- Events & Init ---------- */
+document.getElementById("checkBtn").onclick = checkAnswers;
+document.getElementById("resetBtn").onclick = resetAll;
+document.getElementById("backBtn").onclick  = goHome;
+
+renderHome(); // Startansicht
+</script>
+</body>
+</html>
